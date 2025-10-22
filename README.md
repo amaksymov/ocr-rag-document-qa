@@ -172,5 +172,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - [Ollama](https://ollama.ai/) for local LLM hosting
-- [Qdrant](https://qdrant.tech/) for vector search
+- [Qdrant](https://qdrant.tech/) for vector search capabilities
 - [Tesseract](https://github.com/tesseract-ocr/tesseract) and [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) for OCR capabilities
+- [Next.js](https://nextjs.org/) and [React](https://reactjs.org/) for the frontend framework
+- [NestJS](https://nestjs.com/) and [Fastify](https://www.fastify.io/) for backend development
+- [Docker](https://www.docker.com/) for containerization
+- [BullMQ](https://github.com/OptimalBits/bull) for job queue management
+- [MinIO](https://min.io/) for object storage
+- [PostgreSQL](https://www.postgresql.org/) for metadata storage
+- [Redis](https://redis.io/) for caching and task queuing
+- The open source community for inspiration and continuous improvement
+
+### 🤖 AI Development
+This project was developed with assistance from AI language models, demonstrating the power of human-AI collaboration in modern software development.
