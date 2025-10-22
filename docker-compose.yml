@@ -1,0 +1,164 @@
+version: "3.9"
+
+services:
+  # 🧩 Frontend: Next.js + React
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: ../../infra/docker/web.Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+    ports:
+      - "3001:3000"
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    networks:
+      - appnet
+
+  # ⚙️ Backend API (NestJS/Fastify)
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: ../../infra/docker/api.Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/app
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: documents
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434
+      OCR_URL: http://ocr:8000
+      CORS_ORIGIN: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+      - ollama
+      - minio
+      - ocr
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    networks:
+      - appnet
+
+  # 🔧 Worker: асинхронная обработка документов
+  worker:
+    build:
+      context: ./apps/worker
+      dockerfile: ../../infra/docker/worker.Dockerfile
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/app
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: documents
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434
+      OCR_URL: http://ocr:8000
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+      - minio
+      - ocr
+    volumes:
+      - ./apps/worker:/app
+      - /app/node_modules
+    networks:
+      - appnet
+
+  # 🧠 OCR microservice (Python + FastAPI + Tesseract/PaddleOCR)
+  ocr:
+    build:
+      context: ./services/ocr
+      dockerfile: ../../infra/docker/ocr.Dockerfile
+    environment:
+      PYTHONUNBUFFERED: "1"
+      OCR_LANGS: "eng+rus+ukr"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/ocr:/app
+    networks:
+      - appnet
+
+  # 💾 Векторная база данных (Qdrant)
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - appnet
+
+  # 🗃️ Реляционная база данных (PostgreSQL)
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./infra/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - appnet
+
+  # 📦 Объектное хранилище (MinIO)
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - appnet
+
+  # 🚀 Очередь задач (Redis)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - appnet
+
+  # 🧩 Ollama: локальный LLM + embeddings
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - appnet
+
+networks:
+  appnet:
+
+volumes:
+  qdrant_data:
+  pg_data:
+  minio_data:
+  ollama_data:

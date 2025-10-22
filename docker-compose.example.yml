@@ -1,0 +1,133 @@
+version: "3.9"
+
+services:
+  web:
+    image: yourregistry/web:latest
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: https://yourdomain.com/api
+    ports:
+      - "80:3000"
+    depends_on:
+      - api
+    networks:
+      - appnet
+
+  api:
+    image: yourregistry/api:latest
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: documents
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434
+      OCR_URL: http://ocr:8000
+      CORS_ORIGIN: https://yourdomain.com
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+      - ollama
+      - ocr
+    networks:
+      - appnet
+
+  worker:
+    image: yourregistry/worker:latest
+    restart: always
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: documents
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434
+      OCR_URL: http://ocr:8000
+    depends_on:
+      - postgres
+      - qdrant
+      - redis
+      - ocr
+    networks:
+      - appnet
+
+  ocr:
+    image: yourregistry/ocr:latest
+    restart: always
+    environment:
+      OCR_LANGS: "eng+rus+ukr"
+    ports:
+      - "8000:8000"
+    networks:
+      - appnet
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: always
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - appnet
+
+  postgres:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - appnet
+
+  minio:
+    image: minio/minio:latest
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - appnet
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    networks:
+      - appnet
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: always
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - appnet
+
+networks:
+  appnet:
+
+volumes:
+  qdrant_data:
+  pg_data:
+  minio_data:
+  ollama_data:
